@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业级发布系统设计评审</title>
+<style>
+  :root{
+    --ground:#F6F7F9; --surface:#FFFFFF; --ink:#1B2430; --muted:#5C6675;
+    --line:#DDE2EA; --accent:#0E7490; --accent-soft:#E0F2F7;
+    --warn:#B45309; --warn-soft:#FDF0E0; --danger:#C92A2A; --danger-soft:#FBEAEA;
+    --ok:#2B8A3E; --ok-soft:#E7F5EC; --code:#24303E;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#12161C; --surface:#1A2028; --ink:#E8ECF2; --muted:#9AA5B4;
+      --line:#2C3540; --accent:#4CC3E0; --accent-soft:#12323C;
+      --warn:#E8A24C; --warn-soft:#33270F; --danger:#F0716E; --danger-soft:#38181A;
+      --ok:#63C179; --ok-soft:#12291A; --code:#0D1218;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#12161C; --surface:#1A2028; --ink:#E8ECF2; --muted:#9AA5B4;
+    --line:#2C3540; --accent:#4CC3E0; --accent-soft:#12323C;
+    --warn:#E8A24C; --warn-soft:#33270F; --danger:#F0716E; --danger-soft:#38181A;
+    --ok:#63C179; --ok-soft:#12291A; --code:#0D1218;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  .mono{font-family:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace}
+
+  #stage{position:relative;width:1280px;height:720px;flex:none}
+  .slide{
+    position:absolute;inset:0;background:var(--surface);
+    border:1px solid var(--line);border-radius:14px;
+    padding:52px 64px;display:none;flex-direction:column;overflow:hidden;
+  }
+  .slide.active{display:flex}
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13px;letter-spacing:.14em;
+    color:var(--accent);text-transform:uppercase;margin-bottom:14px;font-weight:600;
+  }
+  h1{font-size:46px;font-weight:800;letter-spacing:-.01em;line-height:1.2;text-wrap:balance}
+  h2{font-size:32px;font-weight:800;letter-spacing:-.01em;line-height:1.25;margin-bottom:6px}
+  .sub{color:var(--muted);font-size:16px;line-height:1.6;margin-top:10px}
+  .body{flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:18px}
+
+  table{border-collapse:collapse;width:100%;font-size:14.5px}
+  th{
+    text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.08em;
+    color:var(--muted);text-transform:uppercase;padding:8px 10px;border-bottom:2px solid var(--line);
+  }
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+  td.num{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--surface)}
+  .card h3{font-size:16px;font-weight:700;margin-bottom:8px}
+  .card p,.card li{font-size:13.5px;color:var(--muted);line-height:1.65}
+  .card ul{padding-left:18px}
+  .card .k{font-family:ui-monospace,Menlo,monospace;font-size:24px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+  .card .k small{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;font-family:ui-monospace,Menlo,monospace}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.danger{background:var(--danger-soft);color:var(--danger)}
+  .pill.info{background:var(--accent-soft);color:var(--accent)}
+
+  .diagram{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .layer{
+    width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 18px;
+    background:var(--surface);position:relative;
+  }
+  .layer .lt{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.1em;color:var(--muted);position:absolute;top:-8px;left:14px;background:var(--surface);padding:0 6px}
+  .layer.hl{border-color:var(--accent);background:var(--accent-soft)}
+  .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .box{
+    border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;
+    background:var(--surface);text-align:center;line-height:1.4;
+  }
+  .box b{display:block;font-size:13.5px}
+  .box span{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+  .box.hl{border-color:var(--accent);background:var(--accent-soft)}
+  .box.warn{border-color:var(--warn);background:var(--warn-soft)}
+  .arrow{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:13px}
+
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .step{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;background:var(--surface)}
+  .step.gate{border-style:dashed;border-color:var(--warn);background:var(--warn-soft)}
+  .step.bad{border-color:var(--danger);background:var(--danger-soft)}
+
+  ul.big{padding-left:22px}
+  ul.big li{font-size:15.5px;line-height:1.9}
+  ul.big li b{font-weight:700}
+  .foot{
+    position:absolute;left:64px;right:64px;bottom:22px;display:flex;justify-content:space-between;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);
+  }
+  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 7px;font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--surface)}
+
+  #hud{position:fixed;bottom:18px;right:22px;display:flex;align-items:center;gap:12px;font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--muted)}
+  #bar{position:fixed;top:0;left:0;height:3px;background:var(--accent);width:0;transition:width .25s}
+  .title-slide{justify-content:center}
+  .title-slide .tag{display:flex;gap:8px;margin-top:26px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="stage">
+
+  <!-- 1 封面 -->
+  <section class="slide title-slide">
+    <div class="eyebrow">Technical Design Review · 2026-08</div>
+    <h1>企业级发布系统<br>架构设计评审</h1>
+    <p class="sub">万级应用 · 多集群 · 开源基座自研 —— 选型结论与落地架构</p>
+    <div class="tag">
+      <span class="pill info">10,000+ 应用</span>
+      <span class="pill info">多集群交付</span>
+      <span class="pill info">Argo Workflows / ArgoCD / Rollouts / KubeVela</span>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>按 <span class="kbd">→</span> 开始</span></div>
+  </section>
+
+  <!-- 2 背景与目标 -->
+  <section class="slide">
+    <div class="eyebrow">01 · Background</div>
+    <h2>背景与目标</h2>
+    <div class="body">
+      <div class="grid g3" style="margin-bottom:18px">
+        <div class="card"><div class="k">10,000<small>+ 应用</small></div><p>应用规模，远超单控制器承载，必须分片</p></div>
+        <div class="card"><div class="k">50<small>+ 集群</small></div><p>多集群多环境（dev/test/staging/prod）渐进交付</p></div>
+        <div class="card"><div class="k">合规<small>审批/审计</small></div><p>企业级要求：审批流、变更窗口、全量审计</p></div>
+      </div>
+      <div class="card">
+        <h3>建设目标</h3>
+        <ul>
+          <li>以开源组件为基座自研，避免厂商锁定，核心链路自主可控；</li>
+          <li>开发者面向"应用"而非 K8s 资源；发布流程标准化、可审批、可回滚；</li>
+          <li>架构具备水平扩展能力，支撑万级应用与未来增长。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>02 / 10</span></div>
+  </section>
+
+  <!-- 3 方案调研总览 -->
+  <section class="slide">
+    <div class="eyebrow">02 · Survey</div>
+    <h2>方案调研总览</h2>
+    <div class="body">
+      <table>
+        <tr><th>路线</th><th>代表方案</th><th>结论</th></tr>
+        <tr><td>OAM 生态</td><td>KubeVela + VelaUX</td><td><span class="pill info">严肃候选</span> 官方压测 200 集群/50 万应用，原生分片</td></tr>
+        <tr><td>开源 GitOps</td><td>ArgoCD/Flux + Helm + Rollouts</td><td><span class="pill ok">主流基线</span> 生态最充分，无锁定</td></tr>
+        <tr><td>平台编排器</td><td>Kusion / Score / Radius / Kratix</td><td><span class="pill warn">观察</span> 项目较新、企业案例少</td></tr>
+        <tr><td>商业一体化</td><td>OpenShift / Harness / Humanitec</td><td><span class="pill warn">不选</span> 成本与厂商锁定</td></tr>
+        <tr><td>国产/信创</td><td>CodeArts / 嘉为蓝鲸 / 云效</td><td><span class="pill warn">不适用</span> 本项目无信创要求</td></tr>
+      </table>
+      <p class="sub" style="margin-top:14px">调研覆盖 20+ 方案；OAM/KubeVela 深度分析见调研文档 2.4 节（含官方压测数据与 CUE 定义体系）。</p>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>03 / 10</span></div>
+  </section>
+
+  <!-- 4 选型结论 -->
+  <section class="slide">
+    <div class="eyebrow">03 · Decision</div>
+    <h2>选型结论</h2>
+    <div class="body">
+      <div class="card hl" style="border-color:var(--accent);background:var(--accent-soft);margin-bottom:14px">
+        <h3>推荐路线：开源 GitOps + 自研编排</h3>
+        <p style="color:var(--ink)">全局薄入口（路由/审批/审计）+ 按 BU 分片的执行闭环（Argo Workflows 编排 + 分片 ArgoCD 状态收敛 + 集群内 Argo Rollouts 发布策略）+ Kafka 异步化 + 一切大对象远离 etcd</p>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>为什么开源自研</h3><ul><li>万级规模有充分开源验证（ArgoCD 5 万应用 / KubeVela 50 万应用）；</li><li>无厂商锁定，核心链路自主可控；</li><li>与现有 CI 工具自由集成。</li></ul></div>
+        <div class="card"><h3>备选：KubeVela 选项B</h3><ul><li>分片内执行层用 KubeVela，省自研抽象/渲染/多集群约 2–3 人月；</li><li>代价：CUE 技术栈 + Hub→集群网络可达要求；</li><li>PoC 并行对比后定稿（决策可后置）。</li></ul></div>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>04 / 10</span></div>
+  </section>
+
+  <!-- 5 总体架构 -->
+  <section class="slide">
+    <div class="eyebrow">04 · Architecture</div>
+    <h2>总体架构：全局薄层 + 分片执行</h2>
+    <div class="body">
+      <div class="diagram">
+        <div class="layer hl">
+          <span class="lt">GLOBAL</span>
+          <div class="row">
+            <div class="box"><b>Portal / API</b><span>无状态 ×3</span></div>
+            <div class="box"><b>统一元数据 DB</b><span>应用/环境/路由</span></div>
+            <div class="box"><b>审批流 / 审计</b><span>变更窗口</span></div>
+            <div class="box"><b>租户 / 权限</b><span>RBAC</span></div>
+          </div>
+        </div>
+        <div class="arrow">│ Kafka 异步任务（按分片 topic）</div>
+        <div class="layer">
+          <span class="lt">SHARDS</span>
+          <div class="row">
+            <div class="box hl"><b>分片 A（BU-1）</b><span>编排+ArgoCD+Git+DB</span></div>
+            <div class="box hl"><b>分片 B（BU-2）</b><span>编排+ArgoCD+Git+DB</span></div>
+            <div class="box hl"><b>分片 C（BU-3）</b><span>编排+ArgoCD+Git+DB</span></div>
+            <div class="box"><b>分片 …</b><span>每片 2000–3000 应用</span></div>
+          </div>
+        </div>
+        <div class="arrow">│ Pull 模式 / cluster-gateway</div>
+        <div class="layer">
+          <span class="lt">CLUSTERS</span>
+          <div class="row">
+            <div class="box"><b>业务集群群</b><span>Agent + Rollouts</span></div>
+            <div class="box"><b>业务集群群</b><span>Agent + Rollouts</span></div>
+            <div class="box"><b>业务集群群</b><span>Agent + Rollouts</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:12px"><b>分片是万级规模的关键</b>：片内自闭环，任何一片故障不影响其他片；全局层不碰执行，无状态可水平扩展。</p>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>05 / 10</span></div>
+  </section>
+
+  <!-- 6 单分片设计 -->
+  <section class="slide">
+    <div class="eyebrow">05 · Shard</div>
+    <h2>单分片设计与组件分工</h2>
+    <div class="body">
+      <table>
+        <tr><th>组件</th><th>职责</th><th>规格（2500 应用）</th></tr>
+        <tr><td>Argo Workflows</td><td>发布编排引擎（archive-to-DB + TTL GC）</td><td class="num">0.5 核 / 1 GiB</td></tr>
+        <tr><td>ArgoCD（分片）</td><td>状态收敛；控制器分片 + repo-server 缓存</td><td class="num">2 核 / 4 GiB</td></tr>
+        <tr><td>Argo Rollouts</td><td>金丝雀/蓝绿 + Analysis 门禁（每业务集群）</td><td class="num">集群内</td></tr>
+        <tr><td>多集群接入</td><td>A：Agent Pull / Karmada；B：cluster-gateway</td><td class="num">按集群数</td></tr>
+        <tr><td>Git 仓库组 + MySQL 分区</td><td>清单 Source of Truth + 发布过程数据</td><td class="num">—</td></tr>
+      </table>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>双数据源原则</h3><p>Git 存期望状态（可审计回滚）；DB 存过程数据（发布单/审批/批次）。大对象（日志/diff/历史）进 ES，绝不进 etcd。</p></div>
+        <div class="card"><h3>限流与隔离</h3><p>单分片并发发布 ≤ 50，超出经 Kafka 排队；对账按 24h 打散（jitter）防雪崩。</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>06 / 10</span></div>
+  </section>
+
+  <!-- 7 发布流程 -->
+  <section class="slide">
+    <div class="eyebrow">06 · Release Flow</div>
+    <h2>一次发布的完整时序</h2>
+    <div class="body">
+      <div class="flow" style="margin-bottom:20px">
+        <div class="step">CI 产出镜像</div><span class="arrow">→</span>
+        <div class="step">创建发布单</div><span class="arrow">→</span>
+        <div class="step gate">变更窗口检查</div><span class="arrow">→</span>
+        <div class="step gate">人工审批（prod）</div><span class="arrow">→</span>
+        <div class="step">更新 Git 镜像 tag</div>
+      </div>
+      <div class="flow" style="margin-bottom:20px">
+        <div class="step">ArgoCD 同步</div><span class="arrow">→</span>
+        <div class="step">批次1（10%）</div><span class="arrow">→</span>
+        <div class="step gate">Analysis 门禁</div><span class="arrow">→</span>
+        <div class="step">批次2（50%）</div><span class="arrow">→</span>
+        <div class="step">批次3（100%）</div><span class="arrow">→</span>
+        <div class="step">完成 + 审计</div>
+      </div>
+      <div class="flow" style="margin-bottom:22px">
+        <span class="arrow">任一门禁失败 →</span>
+        <div class="step bad">自动回滚（onExit 钩子 + Rollouts undo）</div>
+      </div>
+      <div class="grid g3">
+        <div class="card"><h3>GitOps 收敛</h3><p>Git 为期望状态，ArgoCD 拉取同步，漂移自愈。</p></div>
+        <div class="card"><h3>门禁即指标</h3><p>错误率 &lt; 1%、P99 达标（Prometheus AnalysisRun），失败自动回滚。</p></div>
+        <div class="card"><h3>审批可挂起</h3><p>suspend 节点可挂起数天，审批系统回调恢复。</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>07 / 10</span></div>
+  </section>
+
+  <!-- 8 规模化保障 -->
+  <section class="slide">
+    <div class="eyebrow">07 · Scale</div>
+    <h2>万级规模化保障</h2>
+    <div class="body">
+      <table>
+        <tr><th>风险</th><th>保障手段</th></tr>
+        <tr><td>etcd / apiserver 压力</td><td>大对象（历史/日志/diff）不进 CRD，进 DB/ES；控制器分片</td></tr>
+        <tr><td>Git 仓库爆炸</td><td>按 BU 分仓库组 + sparse-checkout + repo-server 缓存（commit SHA 为 key）</td></tr>
+        <tr><td>控制器单点</td><td>ArgoCD / vela-core 控制器分片；ApplicationSet 拆分</td></tr>
+        <tr><td>对账雪崩</td><td>漂移检测按 24h jitter 打散，避免万级同时 reconcile</td></tr>
+        <tr><td>API 阻塞</td><td>全异步（Kafka），API 只返回发布单 ID</td></tr>
+      </table>
+      <div class="grid g3" style="margin-top:14px">
+        <div class="card"><h3>ArgoCD 验证</h3><div class="k">5 万<small>应用 / 1000 集群</small></div><p>Akuity 极限扩展实测</p></div>
+        <div class="card"><h3>KubeVela 验证</h3><div class="k">50 万<small>应用 / 200 集群</small></div><p>CNCF 官方压测报告</p></div>
+        <div class="card"><h3>Karmada 验证</h3><div class="k">100<small>集群 × 5000 节点</small></div><p>官方大规模测试</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>08 / 10</span></div>
+  </section>
+
+  <!-- 9 落地计划 -->
+  <section class="slide">
+    <div class="eyebrow">08 · Roadmap</div>
+    <h2>落地计划与资源</h2>
+    <div class="body">
+      <table>
+        <tr><th>期次</th><th>里程碑</th><th>关键内容</th></tr>
+        <tr><td><span class="pill info">一期 3–4 月</span></td><td>端到端闭环</td><td>应用模型 + 单分片单集群发布 + 审批 + 审计，替代手工 kubectl/helm</td></tr>
+        <tr><td><span class="pill info">二期</span></td><td>生产级交付</td><td>多分片 + 多集群 + 金丝雀 + 监控门禁自动回滚 + 封网管控</td></tr>
+        <tr><td><span class="pill info">三期</span></td><td>平台化与度量</td><td>租户化、模板市场、DORA 指标、智能发布（异常检测）</td></tr>
+      </table>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>前置：PoC（2 周）</h3><p>单分片 2000 应用基线，A/B 路线并行压测，量化验收（调和延迟 P99 ≤ 10s、发布并发 50/分片、控制面 ≤ 4 核/8 GiB）。产出选型终稿。</p></div>
+        <div class="card"><h3>人力配置</h3><p>平台工程师 ×2、后端 ×2、前端 ×1、架构师 ×1（兼）。一期聚焦执行闭环，非功能项随二期建设。</p></div>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>09 / 10</span></div>
+  </section>
+
+  <!-- 10 风险与行动项 -->
+  <section class="slide">
+    <div class="eyebrow">09 · Risk &amp; Next</div>
+    <h2>风险与行动项</h2>
+    <div class="body">
+      <div class="grid g2">
+        <div class="card">
+          <h3>主要风险与对策</h3>
+          <ul>
+            <li><b>CUE/技术栈成本</b>（选项B）→ PoC 设 3 天观察期，超时扣分；</li>
+            <li><b>网络可达</b>（选项B gateway）→ PoC 一票否决项，不可达转 A；</li>
+            <li><b>K8s 控制面瓶颈</b> → 同步规划 etcd/apiserver 容量；</li>
+            <li><b>决策拖延</b> → A/B 分数差 &lt;10% 默认选 A。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>评审后行动项</h3>
+          <ul>
+            <li>确认集群数与 BU 划分 → 定分片数；</li>
+            <li>明确现有 CI 工具 → 定集成方式；</li>
+            <li>启动 2 周 PoC（环境 + A/B 双路线）；</li>
+            <li>输出《PoC 压测报告》锁定路线，进入一期。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card hl" style="border-color:var(--accent);background:var(--accent-soft);margin-top:14px">
+        <h3>请评审决策</h3>
+        <p style="color:var(--ink)">① 是否认可"开源 GitOps + 自研编排"为主路线；② 是否同意 PoC 并行验证 KubeVela 选项B；③ 是否批准一期投入与排期。</p>
+      </div>
+    </div>
+    <div class="foot"><span>RELEASE PLATFORM</span><span>10 / 10</span></div>
+  </section>
+
+</div>
+
+<div id="hud"><span id="counter">1 / 10</span></div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var i=0, n=slides.length;
+  var counter=document.getElementById('counter');
+  var bar=document.getElementById('bar');
+  var stage=document.getElementById('stage');
+  function show(x){
+    i=Math.max(0,Math.min(n-1,x));
+    slides.forEach(function(s,j){s.classList.toggle('active',j===i);});
+    counter.textContent=(i+1)+' / '+n;
+    bar.style.width=((i+1)/n*100)+'%';
+  }
+  function fit(){
+    var s=Math.min(window.innerWidth/1320,window.innerHeight/760);
+    stage.style.transform='scale('+s+')';
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){show(i+1);e.preventDefault();}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){show(i-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);}
+    else if(e.key==='End'){show(n-1);}
+  });
+  document.addEventListener('click',function(e){
+    if(e.clientX>window.innerWidth*0.5){show(i+1);}else{show(i-1);}
+  });
+  window.addEventListener('resize',fit);
+  fit();show(0);
+})();
+</script>
+</body>
+</html>
