@@ -14,7 +14,7 @@
 | [评审汇报.html](./评审汇报.html) | 10 页评审幻灯片（浏览器打开，方向键翻页），覆盖选型结论、总体架构、发布流程、规模化保障、落地计划与风险 |
 | [基础设施部门AI赋能规划（1-2年）](./基础设施部门AI赋能规划（1-2年）.md) | 部门负责人视角的 AI 战略规划：趋势判断、行业可行性基准（Google/Microsoft/Meta/Netflix/阿里云等实证数据）、5 大领域赋能设计（研发/测试/DevOps/运维/安全，各含可行性案例）、AI 基础平台（模型网关/知识库/Agent 运行时/MCP）、四阶段 24 个月路线图、度量体系与治理 |
 | [KubeVela与OAM专家架构师面试题（20题详解）](./KubeVela与OAM专家架构师面试题（20题详解）.md) | 专家架构师面试题集：OAM 设计哲学、CUE 与定义体系、核心机制（生命周期/Revision/ResourceTracker）、多集群（cluster-gateway/Karmada 对比）、工作流、生产工程（万级扩展/GitOps 冲突/多租户/排障）、选型决策与架构设计题；每题含详细解答、考察点、**三级追问树（含详细参考答案）**，机制题附**源码视角**，附录含源码导读 |
-| [SkyWalking-Agent与字节码增强专家面试题（20题详解）](./SkyWalking-Agent与字节码增强专家面试题（20题详解）.md) | APM Agent 方向面试题集，主线为 **Java 字节码增强**：premain/agentmain 与 Instrumentation、类文件结构与校验、Byte Buddy 选型、SkyWalking 插件/拦截器/类加载隔离、JDK 类增强、多 Agent 冲突、sw8 传播与跨线程、性能开销与采样、插件开发与生产工程、eBPF/Mesh 对比、两道设计/排障大题；每题含详细解答、考察点、三级追问树，附源码导读 |
+| [SkyWalking-Agent与字节码增强专家面试题（24题详解）](./SkyWalking-Agent与字节码增强专家面试题（24题详解）.md) | APM Agent 方向面试题集，主线为 **Java 字节码增强**：premain/agentmain 与 Instrumentation、类文件结构与校验、Byte Buddy 选型、SkyWalking 插件/拦截器/类加载隔离、JDK 类增强、多 Agent 冲突、sw8 传播与跨线程、性能开销与采样、插件开发与生产工程、eBPF/Mesh 对比、两道设计/排障大题；**新增第六部分：Arthas 原理（attach/ASM 织入/Spy 桥/恢复机制）与 SkyWalking Agent 全面对比**；每题含详细解答、考察点、三级追问树，附 SkyWalking + Arthas 双源码导读 |
 
 ## 核心架构一句话
 
